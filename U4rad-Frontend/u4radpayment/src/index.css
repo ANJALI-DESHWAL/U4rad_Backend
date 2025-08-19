@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; /* Prevent horizontal scroll from animations */
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}
+
+/* Animation keyframes for the animated background */
+@keyframes floatParticle {
+  0%, 100% { 
+    transform: translateY(0px) translateX(0px); 
+  }
+  33% { 
+    transform: translateY(-30px) translateX(15px); 
+  }
+  66% { 
+    transform: translateY(-15px) translateX(-10px); 
+  }
+}
+
+@keyframes floatOrb {
+  0%, 100% { 
+    transform: translateY(0px) scale(1); 
+  }
+  50% { 
+    transform: translateY(-45px) scale(1.2); 
+  }
+}
+
+@keyframes floatCross {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
+    opacity: 0.25;
+  }
+  50% { 
+    transform: translateY(-35px) rotate(360deg); 
+    opacity: 0.5;
+  }
+}
+
+@keyframes floatGlow {
+  0%, 100% { 
+    transform: translateY(0px) scale(1); 
+    opacity: 0.6;
+  }
+  50% { 
+    transform: translateY(-40px) scale(1.5); 
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% { 
+    opacity: 0.3; 
+    transform: scale(1);
+  }
+  100% { 
+    opacity: 0.8; 
+    transform: scale(1.4);
+  }
+}
+
+@keyframes rotateSquare {
+  0% { 
+    transform: rotate(0deg) scale(1); 
+  }
+  50% { 
+    transform: rotate(180deg) scale(1.1); 
+  }
+  100% { 
+    transform: rotate(360deg) scale(1); 
+  }
+}
+
+@keyframes floatHex {
+  0%, 100% { 
+    transform: rotate(45deg) translateY(0px); 
+  }
+  50% { 
+    transform: rotate(225deg) translateY(-15px); 
+  }
+}
+
+@keyframes moveGrid {
+  0% { 
+    background-position: 0 0; 
+  }
+  100% { 
+    background-position: 40px 40px; 
+  }
+}
+
+@keyframes wave1 {
+  0%, 100% { 
+    clip-path: polygon(0 60%, 100% 40%, 100% 100%, 0% 100%);
+    transform: translateX(0);
+  }
+  50% { 
+    clip-path: polygon(0 40%, 100% 60%, 100% 100%, 0% 100%);
+    transform: translateX(10px);
+  }
+}
+
+@keyframes wave2 {
+  0%, 100% { 
+    clip-path: polygon(0 80%, 100% 50%, 100% 100%, 0% 100%);
+  }
+  50% { 
+    clip-path: polygon(0 50%, 100% 80%, 100% 100%, 0% 100%);
+  }
+}
+
+@keyframes wave3 {
+  0%, 100% { 
+    clip-path: polygon(0 0, 100% 0, 100% 70%, 0 40%);
+    opacity: 0.08;
+  }
+  50% { 
+    clip-path: polygon(0 0, 100% 0, 100% 40%, 0 70%);
+    opacity: 0.12;
+  }
+}
+
+/* Utility classes for glass effect cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+}
+
+.glass-card-light {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Text visibility improvements on dark animated backgrounds */
+.text-on-dark {
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Ensure buttons work well with animated backgrounds */
+.btn-on-animated {
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+}
+
+.btn-on-animated:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Performance optimization for animations */
+.animated-element {
+  will-change: transform, opacity;
+  transform: translateZ(0); /* Enable hardware acceleration */
+}
+
+/* Smooth transitions for page content */
+.page-content {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Z-index layers for proper stacking */
+.z-background {
+  z-index: 1;
+}
+
+.z-content {
+  z-index: 10;
+}
+
+.z-header {
+  z-index: 20;
+}
+
+.z-modal {
+  z-index: 50;
+}
+
+/* Mobile responsiveness for animations */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Reduce animation intensity on mobile for better performance */
+  .mobile-reduced-motion {
+    animation-duration: 2s !important;
+  }
+}
+
+/* Accessibility - respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

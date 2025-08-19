@@ -1,0 +1,53 @@
+.App {
+  text-align: center;
+}
+
+/* Custom styles for U4RAD components */
+.u4rad-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.u4rad-card {
+  transition: transform 0.2s;
+}
+
+.u4rad-card:hover {
+  transform: translateY(-2px);
+}
+
+.u4rad-button {
+  transition: all 0.3s ease;
+}
+
+.u4rad-button:hover {
+  transform: scale(1.05);
+}
+
+/* Loading spinner */
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive design helpers */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .mobile-text-sm {
+    font-size: 0.875rem;
+  }
+}
+
