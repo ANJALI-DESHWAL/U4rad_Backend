@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'rest_framework',  # Django REST Framework
     'dashboard',  # Your dashboard app
+    'Cart',  # Your Cart app
     
 ]
 
