@@ -1,17 +1,14 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import Footer from './Components/Footer';
+import Header from './Components/Header';
+import RadiologistRegistration from './Components/RadiologistRegistration';
+import TopUpModal from './Components/TopUpModal';
+import CartPage from './Pages/CartPage';
+import Dashboard from './Pages/Dashboard';
 import LoginPage from './Pages/LoginPage';
 import QualityPage from './Pages/QualityPage';
-import AuthFlow from './Components/AuthFlow';
-import Dashboard from './Pages/Dashboard';
-import RadiologistRegistration from './Components/RadiologistRegistration';
 import SandePage from './Pages/SandEPage';
-import CartPage from './Pages/CartPage';
-import Header from './Components/Header';
-import TopUpModal from './Components/TopUpModal';
-import Footer from './Components/Footer';
-import ViewResponse from './Components/ViewResponse';
-import RateList from './Components/RateList';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -54,6 +51,12 @@ function App() {
             }
           />
 
+          {/* ✅ MOVED: Radiologist registration is now PUBLIC (no authentication required) */}
+          <Route
+            path="/radiologist-registration"
+            element={<RadiologistRegistration />}
+          />
+
           <Route
             path="/quality"
             element={
@@ -70,17 +73,6 @@ function App() {
             element={
               isAuthenticated ? (
                 <Dashboard />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-
-          <Route
-            path="/radiologist-registration"
-            element={
-              isAuthenticated ? (
-                <RadiologistRegistration /> 
               ) : (
                 <Navigate to="/login" replace />
               )
@@ -136,7 +128,7 @@ function App() {
           />
         )}
         
-        {/* ✅ Footer */}
+        {/* ✅ Footer - only show when authenticated */}
         {isAuthenticated && <Footer />}
       </div>
     </Router>

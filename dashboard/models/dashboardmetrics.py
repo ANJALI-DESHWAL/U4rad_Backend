@@ -11,6 +11,6 @@ class DashboardMetrics(models.Model):
     last_login = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
     def __str__(self) -> str:
         return f"{self.user.email} - Dashboard Metrics"
