@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-#from dashboard.views.dashboardmetricsviewset import DashboardMetricsViewSet
+from dashboard.views.dashboardmetricsviewset import DashboardMetricsViewSet
 #from dashboard.views.notifications import NotificationViewSet
 #from dashboard.views.activity import ActivityViewSet
 from dashboard.views.userview import LoginAPIView
@@ -16,6 +16,7 @@ from dashboard.views.recent_activity_view import (
 )
 
 router = DefaultRouter()
+router.register(r'dashboard-metrics', DashboardMetricsViewSet, basename='dashboard-metrics')
 
 urlpatterns = [
     path('', include(router.urls)),
