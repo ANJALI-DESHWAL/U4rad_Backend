@@ -1,53 +1,75 @@
 from rest_framework import serializers
-from decimal import Decimal
-from Cart.Models.Cart import Cart
+from Cart.Models.Cart import Order, OrderService
 from Cart.Models.Services import Service
-from Cart.Serializer.ServiceSerializer import ServiceSerializer
+from dashboard.models.user import CustomUser
 
 
-class CartSerializer(serializers.ModelSerializer):
-    # Nested representation of services
-    services = ServiceSerializer(many=True, read_only=True)
+# --------- (for GET) ----------
+class ServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = ["id", "name"]
 
-    # Allow adding services via IDs
-    service_ids = serializers.PrimaryKeyRelatedField(
-        queryset=Service.objects.all(), many=True, write_only=True, required=False
-    )
+
+class OrderServiceReadSerializer(serializers.ModelSerializer):
+    service = ServiceSerializer()
 
     class Meta:
-        model = Cart
-        fields = ["id", "user_id", "services", "service_ids", "total_amount"]
+        model = OrderService
+        fields = ["id", "service", "quantity", "amount"]
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["id", "username", "email"]
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    client = UserSerializer()
+    services = OrderServiceReadSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "order_id",
+            "client",
+            "services",
+            "total_amount",
+            "discount",
+            "grand_total",
+            "payment_status",
+        ]
+
+
+# --------(for POST) ----------
+class OrderServiceWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderService
+        fields = ["service", "quantity", "amount"]  # expects service id
+
+
+class OrderCreateSerializer(serializers.ModelSerializer):
+    services = OrderServiceWriteSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "client",          # expects client id
+            "order_id",
+            "services",
+            "total_amount",
+            "discount",
+            "grand_total",
+            "payment_status",
+        ]
 
     def create(self, validated_data):
-        # Extract service_ids
-        service_ids = validated_data.pop("service_ids", [])
-        cart = Cart.objects.create(**validated_data)
+        services_data = validated_data.pop("services")
+        order = Order.objects.create(**validated_data)
 
-        if service_ids:
-            cart.services.set(service_ids)
+        for svc in services_data:
+            OrderService.objects.create(order=order, **svc)
 
-        # Calculate total_amount from services
-        cart.total_amount = sum(
-            (s.rate * s.quantity for s in cart.services.all()), Decimal("0.00")
-        )
-        cart.save()
-        return cart
-
-    def update(self, instance, validated_data):
-        # Extract service_ids if provided
-        service_ids = validated_data.pop("service_ids", None)
-
-        # Update normal fields
-        instance.user_id = validated_data.get("user_id", instance.user_id)
-        instance.save()
-
-        # Update services if service_ids provided
-        if service_ids is not None:
-            instance.services.set(service_ids)
-
-        # Recalculate total_amount
-        instance.total_amount = sum(
-            (s.rate * s.quantity for s in instance.services.all()), Decimal("0.00")
-        )
-        instance.save()
-        return instance
+        return order

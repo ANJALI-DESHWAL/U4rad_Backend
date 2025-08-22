@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.conf import settings  # not required here unless you link to AUTH_USER_MODEL elsewhere
+
 
 class UserManager(BaseUserManager):
     def create_user(self, user_id, password=None):
@@ -15,6 +17,7 @@ class UserManager(BaseUserManager):
         user.is_admin = True
         user.save(using=self._db)
         return user
+
 
 class CustomUser(AbstractBaseUser):
     user_id = models.CharField(max_length=50, unique=True)
