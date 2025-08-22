@@ -1,7 +1,7 @@
 from django.contrib import admin
 from Cart.Models.Cart import Order, OrderService  # Order & OrderService models
 from Cart.Models.Services import Service, PriceRange
-
+from Cart.Models.PromoCode import PromoCode
 # --------------------------
 # PriceRange Inline inside Service
 # --------------------------
@@ -42,4 +42,16 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ("order_id", "client__user_id")  # allow searching by user_id
     inlines = [OrderServiceInline]
     autocomplete_fields = ("client",)
+
+# --------------------------promocode admin --------------------------
+@admin.register(PromoCode)
+class PromoCodeAdmin(admin.ModelAdmin):
+    list_display = ("code", "discount_percentage", "valid_from", "valid_to", "active", "is_valid")
+    list_filter = ("active", "valid_from", "valid_to")
+    search_fields = ("code",)
+    ordering = ("-valid_from",)
+
+    def is_valid(self, obj):
+        return obj.is_valid()
+    is_valid.boolean = True
 
