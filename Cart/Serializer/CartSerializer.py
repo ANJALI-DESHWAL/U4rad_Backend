@@ -16,13 +16,8 @@ class OrderServiceReadSerializer(serializers.ModelSerializer):
         model = OrderService
         fields = ["id", "service", "quantity", "amount"]
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ["id", "user_id"]  # updated to match CustomUser model
-
 class OrderSerializer(serializers.ModelSerializer):
-    client = UserSerializer()
+    name = serializers.CharField(source="client.user_id", read_only=True)  # show user_id as name
     services = OrderServiceReadSerializer(many=True)
 
     class Meta:
@@ -30,7 +25,7 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "order_id",
-            "client",
+            "name",           # client name instead of client object
             "services",
             "total_amount",
             "discount",
