@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link} from 'react-router-dom';
 import AnimatedBackground from '../Components/AnimatedBackground';
 
-const LoginPage = ({ setIsAuthenticated }) => {
-    const [username, setUsername] = useState('');
+const LoginPage = ({ setIsAuthenticated, setCurrentUser }) => {
+    const [user_id, setUser_id] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -14,27 +14,39 @@ const LoginPage = ({ setIsAuthenticated }) => {
         setLoading(true);
         setError('');
 
-        try {
-            // Replace this with your actual authentication logic
-            // For demo purposes, using simple validation
-            if (username.trim() && password.trim()) {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Set authentication state
-                setIsAuthenticated(true);
-                
-                // Navigate to quality page
-                navigate('/quality');
-            } else {
-                setError('Please enter both username and password');
-            }
-        } catch (err) {
-            setError('Login failed. Please try again.');
-        } finally {
-            setLoading(false);
+    try {
+      if (user_id.trim() && password.trim()) {
+        // Replace with actual API call to authenticate
+        const response = await fetch('http://127.0.0.1:8000/api/login/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+                        user_id: user_id.trim(), 
+                        password: password.trim() 
+                    })
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          
+          setIsAuthenticated(true);
+          setCurrentUser(userData); // ✅ Set the user data
+          
+          navigate('/quality');
+        } else {
+          setError('Invalid credentials');
         }
-    };
+      } else {
+        setError('Please enter both user ID and password');
+      }
+    } catch (err) {
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
     return (
         <AnimatedBackground>
@@ -88,13 +100,13 @@ const LoginPage = ({ setIsAuthenticated }) => {
 
                             <div>
                                 <label className="block text-gray-700 text-sm font-medium mb-2">
-                                    Username
+                                    User ID
                                 </label>
                                 <input
                                     type="text"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    placeholder="Enter your username"
+                                    value={user_id}
+                                    onChange={(e) => setUser_id(e.target.value)}
+                                    placeholder="Enter your user id"
                                     className="w-full px-4 py-3 bg-white text-gray-800 rounded-lg border border-gray-300 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
                                     required
                                 />

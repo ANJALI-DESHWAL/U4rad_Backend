@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../Assets/logo.jpg';
 
-const Header = ({ setTopUpModal, setIsAuthenticated }) => {
+const Header = ({ setTopUpModal, setIsAuthenticated, setCurrentUser }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const currentPath = location.pathname;
@@ -11,6 +11,10 @@ const Header = ({ setTopUpModal, setIsAuthenticated }) => {
             setIsAuthenticated(false);
             navigate('/login');
         }
+        setIsAuthenticated(false);
+        setCurrentUser(null); // ✅ Clear user on logout
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('currentUser');
     };
 
     return (

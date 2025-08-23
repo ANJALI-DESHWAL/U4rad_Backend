@@ -1,56 +1,160 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AnimatedBackground from "../Components/AnimatedBackground";
 
-// Pricing logic
-const calculateAmount = (item) => {
-  const quantity = parseInt(item.quantity) || 0;
-  switch (item.name) {
-    case "XRAY":
-      return quantity <= 50
-        ? quantity * 30
-        : 50 * 30 + (quantity - 50) * 50;
-    case "CT":
-      return quantity <= 50
-        ? quantity * 90
-        : 50 * 90 + (quantity - 50) * 120;
-    case "MRI":
-      return quantity * 500;
-    case "Mammo":
-      return quantity <= 10
-        ? quantity * 500
-        : 10 * 500 + (quantity - 10) * 400;
-    default:
-      return 0;
-  }
-};
-
-const SandEPage = () => {
+const SandEPage = ({ currentUser }) => {
   const navigate = useNavigate();
+  
+  const [services, setServices] = useState([]);
+  const [cartItems, setCartItems] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [cartItems, setCartItems] = useState([
-    { name: "XRAY", quantity: 0 },
-    { name: "CT", quantity: 0 },
-    { name: "MRI", quantity: 0 },
-    { name: "Mammo", quantity: 0 },
-  ]);
+  // Fetch services data from API
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://127.0.0.1:8000/api/services/');
+        if (!response.ok) {
+          throw new Error('Failed to fetch services');
+        }
+        const servicesData = await response.json();
+        setServices(servicesData);
+        
+        // Initialize cart items with zero quantities
+        const initialCart = {};
+        servicesData.forEach(service => {
+          initialCart[service.id] = { 
+            serviceId: service.id,
+            name: service.name, 
+            quantity: 0 
+          };
+        });
+        setCartItems(initialCart);
+      } catch (err) {
+        setError(err.message);
+        console.error('Error fetching services:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const updateQuantity = (index, quantity) => {
-    const updatedItems = [...cartItems];
-    updatedItems[index].quantity =
-      quantity === "" ? "" : Math.max(0, parseInt(quantity) || 0);
-    setCartItems(updatedItems);
+    fetchServices();
+  }, []);
+
+  // Calculate amount based on service price ranges
+  const calculateAmount = (service, quantity) => {
+    if (!quantity || quantity <= 0) return 0;
+    
+    for (const priceRange of service.price_ranges) {
+      if (quantity >= priceRange.start_quantity && quantity <= priceRange.end_quantity) {
+        return quantity * parseFloat(priceRange.price);
+      }
+    }
+    
+    // If quantity exceeds all ranges, use the last (highest) range price
+    const lastRange = service.price_ranges[service.price_ranges.length - 1];
+    return quantity * parseFloat(lastRange.price);
   };
 
-  const totalAmount = cartItems.reduce(
-    (sum, item) => sum + calculateAmount(item),
-    0
-  );
-
-  const handleAddToCart = () => {
-    // Store in memory instead of localStorage for artifacts
-    navigate("/cart", { state: { cartItems, totalAmount } });
+  const updateQuantity = (serviceId, quantity) => {
+    setCartItems(prev => ({
+      ...prev,
+      [serviceId]: {
+        ...prev[serviceId],
+        quantity: quantity === "" ? "" : Math.max(0, parseInt(quantity) || 0)
+      }
+    }));
   };
+
+  const getTotalAmount = () => {
+    return Object.values(cartItems).reduce((sum, item) => {
+      const service = services.find(s => s.id === item.serviceId);
+      if (!service) return sum;
+      return sum + calculateAmount(service, parseInt(item.quantity) || 0);
+    }, 0);
+  };
+
+  const handleAddToCart = async () => {
+    try {
+      // Filter out items with zero quantity
+      const itemsToAdd = Object.values(cartItems).filter(item => 
+        parseInt(item.quantity) > 0
+      );
+
+      if (itemsToAdd.length === 0) {
+        alert('Please add at least one item to cart');
+        return;
+      }
+
+      // Prepare cart data for API
+      const cartData = {
+        client: currentUser.id, // You might need to get this from user context/auth
+        order_id: `ORDER_${Date.now()}`, // Generate unique order ID
+        services: itemsToAdd.map(item => {
+          const service = services.find(s => s.id === item.serviceId);
+          const amount = calculateAmount(service, parseInt(item.quantity));
+          return {
+            service: item.serviceId,
+            quantity: parseInt(item.quantity),
+            amount: amount.toFixed(2)
+          };
+        }),
+        total_amount: getTotalAmount().toFixed(2),
+        discount: "0.00",
+        grand_total: getTotalAmount().toFixed(2),
+        payment_status: false
+      };
+
+      const response = await fetch('http://127.0.0.1:8000/api/cart/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(cartData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add items to cart');
+      }
+
+      const result = await response.json();
+      
+      // Navigate to cart page with the order data
+      navigate("/cart", { 
+        state: { 
+          cartData: result,
+          services: services,
+          cartItems: itemsToAdd 
+        } 
+      });
+      
+    } catch (err) {
+      console.error('Error adding to cart:', err);
+      alert('Failed to add items to cart. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <AnimatedBackground>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-white text-xl">Loading services...</div>
+        </div>
+      </AnimatedBackground>
+    );
+  }
+
+  if (error) {
+    return (
+      <AnimatedBackground>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-red-500 text-xl">Error: {error}</div>
+        </div>
+      </AnimatedBackground>
+    );
+  }
 
   return (
     <AnimatedBackground>
@@ -74,59 +178,33 @@ const SandEPage = () => {
             <div className="bg-white p-6 rounded-2xl shadow-xl">
               <h3 className="text-xl font-bold mb-6 border-b-2 border-red-500 pb-2">Service Rates</h3>
               
-              {/* XRAY */}
-              <div className="mb-6">
-                <h4 className="text-blue-600 font-semibold mb-3 border-l-4 border-blue-600 pl-2">XRAY</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-blue-600">
-                    <span className="text-sm">Quantity: 1 - 50</span>
-                    <span className="text-red-600 font-bold">Rate: ₹30</span>
+              {services.map((service, index) => {
+                const colors = ['blue', 'green', 'purple', 'orange', 'indigo', 'pink'];
+                const color = colors[index % colors.length];
+                
+                return (
+                  <div key={service.id} className="mb-6">
+                    <h4 className={`text-${color}-600 font-semibold mb-3 border-l-4 border-${color}-600 pl-2`}>
+                      {service.name}
+                    </h4>
+                    <div className="space-y-2">
+                      {service.price_ranges.map((range) => (
+                        <div 
+                          key={range.id} 
+                          className={`flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-${color}-600`}
+                        >
+                          <span className="text-sm">
+                            Quantity: {range.start_quantity} - {range.end_quantity}
+                          </span>
+                          <span className="text-red-600 font-bold">
+                            Rate: ₹{parseFloat(range.price).toFixed(0)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-blue-600">
-                    <span className="text-sm">Quantity: 51 - 100</span>
-                    <span className="text-red-600 font-bold">Rate: ₹50</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* CT */}
-              <div className="mb-6">
-                <h4 className="text-green-600 font-semibold mb-3 border-l-4 border-green-600 pl-2">CT</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-green-600">
-                    <span className="text-sm">Quantity: 1 - 50</span>
-                    <span className="text-red-600 font-bold">Rate: ₹90</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-green-600">
-                    <span className="text-sm">Quantity: 51 - 100</span>
-                    <span className="text-red-600 font-bold">Rate: ₹120</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* MRI */}
-              <div className="mb-6">
-                <h4 className="text-purple-600 font-semibold mb-3 border-l-4 border-purple-600 pl-2">MRI</h4>
-                <div className="flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-purple-600">
-                  <span className="text-sm">Quantity: 1 - 20</span>
-                  <span className="text-red-600 font-bold">Rate: ₹500</span>
-                </div>
-              </div>
-
-              {/* Mammo */}
-              <div>
-                <h4 className="text-orange-600 font-semibold mb-3 border-l-4 border-orange-600 pl-2">Mammo</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-orange-600">
-                    <span className="text-sm">Quantity: 1 - 10</span>
-                    <span className="text-red-600 font-bold">Rate: ₹500</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-gray-50 p-3 rounded border-l-4 border-orange-600">
-                    <span className="text-sm">Quantity: 11 - 20</span>
-                    <span className="text-red-600 font-bold">Rate: ₹400</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
 
             {/* Estimator Panel */}
@@ -144,43 +222,45 @@ const SandEPage = () => {
 
               {/* Table Body */}
               <div className="border border-gray-200 rounded-b-lg">
-                {cartItems.map((item, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-4 p-3 border-b border-gray-100 items-center">
-                    {/* Service Name with colored dot */}
-                    <div className="flex items-center">
-                      <div className={`w-2 h-2 rounded-full mr-2 ${
-                        item.name === 'XRAY' ? 'bg-blue-600' :
-                        item.name === 'CT' ? 'bg-green-600' :
-                        item.name === 'MRI' ? 'bg-purple-600' :
-                        'bg-orange-600'
-                      }`}></div>
-                      <span className="text-sm">{item.name}</span>
+                {services.map((service, index) => {
+                  const colors = ['blue', 'green', 'purple', 'orange', 'indigo', 'pink'];
+                  const color = colors[index % colors.length];
+                  const cartItem = cartItems[service.id];
+                  const quantity = cartItem ? parseInt(cartItem.quantity) || 0 : 0;
+                  
+                  return (
+                    <div key={service.id} className="grid grid-cols-3 gap-4 p-3 border-b border-gray-100 items-center">
+                      {/* Service Name with colored dot */}
+                      <div className="flex items-center">
+                        <div className={`w-2 h-2 rounded-full mr-2 bg-${color}-600`}></div>
+                        <span className="text-sm">{service.name}</span>
+                      </div>
+                      
+                      {/* Quantity Input */}
+                      <div className="text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          value={cartItem?.quantity === "" ? "" : cartItem?.quantity || ""}
+                          onChange={(e) => updateQuantity(service.id, e.target.value)}
+                          className="w-12 p-1 border border-gray-300 rounded text-center text-sm"
+                        />
+                      </div>
+                      
+                      {/* Amount */}
+                      <div className="text-center text-green-600 font-bold text-sm">
+                        ₹{calculateAmount(service, quantity)}
+                      </div>
                     </div>
-                    
-                    {/* Quantity Input */}
-                    <div className="text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.quantity === "" ? "" : item.quantity}
-                        onChange={(e) => updateQuantity(index, e.target.value)}
-                        className="w-12 p-1 border border-gray-300 rounded text-center text-sm"
-                      />
-                    </div>
-                    
-                    {/* Amount */}
-                    <div className="text-center text-green-600 font-bold text-sm">
-                      ₹{calculateAmount(item)}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Total Amount Section */}
               <div className="mt-6 bg-red-50 p-4 rounded-lg">
                 <div className="text-right">
                   <span className="text-lg font-semibold mr-4">Total Amount:</span>
-                  <span className="text-2xl font-bold text-red-600">₹{totalAmount}</span>
+                  <span className="text-2xl font-bold text-red-600">₹{getTotalAmount()}</span>
                 </div>
               </div>
 

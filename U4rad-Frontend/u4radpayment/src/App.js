@@ -13,21 +13,25 @@ import SandePage from './Pages/SandEPage';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [topUpModal, setTopUpModal] = useState(false);
-
-  // ✅ add these 2 state variables
   const [topUpAmount, setTopUpAmount] = useState('');
   const [userBalance, setUserBalance] = useState(0);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const authStatus = localStorage.getItem('isAuthenticated');
-    if (authStatus === 'true') {
+    const userData = localStorage.getItem('currentUser');
+    if (authStatus === 'true' && userData) {
       setIsAuthenticated(true);
+      setCurrentUser(JSON.parse(userData));
     }
   }, []);
 
   useEffect(() => {
     localStorage.setItem('isAuthenticated', isAuthenticated.toString());
-  }, [isAuthenticated]);
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser)); // ✅ Store user
+    }
+  }, [isAuthenticated, currentUser]);
 
   return (
     <Router>
@@ -36,6 +40,7 @@ function App() {
           <Header
             setTopUpModal={setTopUpModal}
             setIsAuthenticated={setIsAuthenticated}
+            setCurrentUser={setCurrentUser}
           />
         )}
 
@@ -46,7 +51,9 @@ function App() {
               isAuthenticated ? (
                 <Navigate to="/quality" replace />
               ) : (
-                <LoginPage setIsAuthenticated={setIsAuthenticated} />
+                <LoginPage setIsAuthenticated={setIsAuthenticated}
+                setCurrentUser={setCurrentUser} 
+                 />
               )
             }
           />
@@ -83,7 +90,7 @@ function App() {
             path="/sande"
             element={
               isAuthenticated ? (
-                <SandePage />
+                <SandePage  currentUser={currentUser} />
               ) : (
                 <Navigate to="/login" replace />
               )
@@ -94,7 +101,7 @@ function App() {
             path="/cart"
             element={
               isAuthenticated ? (
-                <CartPage />
+                <CartPage  currentUser={currentUser} />
               ) : (
                 <Navigate to="/login" replace />
               )
