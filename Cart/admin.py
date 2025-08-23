@@ -55,3 +55,12 @@ class PromoCodeAdmin(admin.ModelAdmin):
         return obj.is_valid()
     is_valid.boolean = True
 
+#--------------------------Transaction Admin --------------------------
+from Cart.Models.Transaction import Transaction # Import the Transaction model
+@admin.register(Transaction)
+class TransactionAdmin(admin.ModelAdmin):
+    list_display = ("provider_order_id", "user", "service", "quantity", "amount", "promo_code", "total_amount", "discount", "grand_total", "status", "created_at")
+    search_fields = ("provider_order_id", "payment_id", "signature_id", "user__username")
+    list_filter = ("status", "created_at")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)

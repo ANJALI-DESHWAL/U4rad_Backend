@@ -3,13 +3,11 @@ from Cart.Models.Cart import Order, OrderService
 from Cart.Models.Services import Service
 from dashboard.models.user import CustomUser
 
-
 # --------- (for GET) ----------
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ["id", "name"]
-
 
 class OrderServiceReadSerializer(serializers.ModelSerializer):
     service = ServiceSerializer()
@@ -18,12 +16,10 @@ class OrderServiceReadSerializer(serializers.ModelSerializer):
         model = OrderService
         fields = ["id", "service", "quantity", "amount"]
 
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ["id", "username", "email"]
-
+        fields = ["id", "user_id"]  # updated to match CustomUser model
 
 class OrderSerializer(serializers.ModelSerializer):
     client = UserSerializer()
@@ -42,13 +38,11 @@ class OrderSerializer(serializers.ModelSerializer):
             "payment_status",
         ]
 
-
 # --------(for POST) ----------
 class OrderServiceWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderService
         fields = ["service", "quantity", "amount"]  # expects service id
-
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     services = OrderServiceWriteSerializer(many=True)
