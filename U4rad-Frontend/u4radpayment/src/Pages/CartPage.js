@@ -30,15 +30,26 @@ const CartPage = ({ currentUser }) => {
           if (location.state.cartData.discount) {
             setAppliedDiscount(parseFloat(location.state.cartData.discount));
           }
+        } else if (currentUser?.email) {
+          // Fetch cart data from API using user email
+          await fetchCartDataFromAPI();
         } else {
-          // If no data passed, redirect to SandE page
-          console.warn('No cart data found, redirecting to SandE page');
+          // If no data and no user, redirect to SandE page
+          console.warn('No cart data found and no user logged in, redirecting to SandE page');
           navigate('/sande');
           return;
         }
 
-        // Always fetch promo codes
-        await fetchPromoCodes();
+        // Always fetch promo codes and services (but don't wait for services if we have API data)
+        if (location.state?.cartData) {
+          // When data comes from SandE, we need services for price calculations
+          await Promise.all([fetchPromoCodes(), fetchServices()]);
+        } else {
+          // When data comes from API, service names are already included, so just fetch promo codes
+          await fetchPromoCodes();
+          // Optionally fetch services in background for future operations
+          fetchServices().catch(console.error);
+        }
       } catch (err) {
         setError(err.message);
         console.error('Error loading cart data:', err);
@@ -48,7 +59,75 @@ const CartPage = ({ currentUser }) => {
     };
 
     loadCartData();
-  }, [location.state, navigate]);
+  }, [location.state, navigate, currentUser]);
+
+  // Fetch cart data from API
+  const fetchCartDataFromAPI = async () => {
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/cart/${currentUser.email}/`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch cart data');
+      }
+      const cartArray = await response.json();
+      
+      if (cartArray && cartArray.length > 0) {
+        // Take the first cart (assuming one active cart per user)
+        const cart = cartArray[0];
+        
+        // Transform the API response to match expected structure
+        const transformedCart = {
+          ...cart,
+          services: cart.services.map(item => ({
+            service: item.service.id,
+            quantity: item.quantity,
+            amount: item.amount,
+            // Add service name for easier access
+            serviceName: item.service.name,
+            // Keep the full service object for reference
+            serviceObject: item.service
+          }))
+        };
+        
+        setCartData(transformedCart);
+        
+        // Set applied discount if exists
+        if (cart.discount && parseFloat(cart.discount) > 0) {
+          setAppliedDiscount(parseFloat(cart.discount));
+        }
+      } else {
+        // Empty cart
+        setCartData({
+          services: [],
+          total_amount: "0.00",
+          grand_total: "0.00",
+          discount: "0.00"
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching cart data from API:', err);
+      // Set empty cart on error
+      setCartData({
+        services: [],
+        total_amount: "0.00",
+        grand_total: "0.00",
+        discount: "0.00"
+      });
+    }
+  };
+
+  // Fetch available services
+  const fetchServices = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/services/');
+      if (!response.ok) {
+        throw new Error('Failed to fetch services');
+      }
+      const servicesData = await response.json();
+      setServices(servicesData);
+    } catch (err) {
+      console.error('Error fetching services:', err);
+    }
+  };
 
   // Fetch available promo codes
   const fetchPromoCodes = async () => {
@@ -69,9 +148,38 @@ const CartPage = ({ currentUser }) => {
     return services.find(service => service.id === serviceId);
   };
 
+  // Get service name from cart item (for API fetched data)
+  const getServiceName = (cartItem) => {
+    // First priority: service name from API response
+    if (cartItem.serviceName) {
+      return cartItem.serviceName;
+    }
+    
+    // Second priority: service object from API response
+    if (cartItem.serviceObject && cartItem.serviceObject.name) {
+      return cartItem.serviceObject.name;
+    }
+    
+    // Third priority: lookup from services array using service ID
+    const serviceId = typeof cartItem.service === 'object' ? cartItem.service.id : cartItem.service;
+    const service = getServiceById(serviceId);
+    if (service && service.name) {
+      return service.name;
+    }
+    
+    // Fallback with proper ID extraction
+    const displayId = typeof cartItem.service === 'object' ? cartItem.service.id || 'Unknown' : cartItem.service;
+    return `Service ${displayId}`;
+  };
+
   // Calculate service amount based on price ranges
   const calculateServiceAmount = (service, quantity) => {
     if (!quantity || quantity <= 0) return 0;
+    
+    if (!service.price_ranges || service.price_ranges.length === 0) {
+      // Fallback calculation if no price ranges
+      return quantity * 30; // Default rate
+    }
     
     for (const priceRange of service.price_ranges) {
       if (quantity >= priceRange.start_quantity && quantity <= priceRange.end_quantity) {
@@ -85,18 +193,30 @@ const CartPage = ({ currentUser }) => {
   };
 
   // Get rate per unit for a service at given quantity
-  const getServiceRate = (service, quantity) => {
-    if (!quantity || quantity <= 0) return 0;
+  const getServiceRate = (cartItem) => {
+    // Extract service ID properly
+    const serviceId = typeof cartItem.service === 'object' ? cartItem.service.id : cartItem.service;
+    const service = getServiceById(serviceId);
+    
+    if (!service || !service.price_ranges || service.price_ranges.length === 0) {
+      // Calculate rate from amount and quantity for API fetched data
+      if (cartItem.quantity > 0) {
+        return (parseFloat(cartItem.amount) / cartItem.quantity).toFixed(2);
+      }
+      return "0.00";
+    }
+    
+    const quantity = cartItem.quantity;
     
     for (const priceRange of service.price_ranges) {
       if (quantity >= priceRange.start_quantity && quantity <= priceRange.end_quantity) {
-        return parseFloat(priceRange.price);
+        return parseFloat(priceRange.price).toFixed(2);
       }
     }
     
     // If quantity exceeds all ranges, use the last (highest) range price
     const lastRange = service.price_ranges[service.price_ranges.length - 1];
-    return parseFloat(lastRange.price);
+    return parseFloat(lastRange.price).toFixed(2);
   };
 
   // Apply promo code
@@ -150,17 +270,30 @@ const CartPage = ({ currentUser }) => {
     if (newQuantity < 0) return;
 
     try {
-      const service = getServiceById(serviceId);
-      if (!service) return;
-
-      const newAmount = calculateServiceAmount(service, newQuantity);
+      // Extract proper service ID if it's an object
+      const actualServiceId = typeof serviceId === 'object' ? serviceId.id : serviceId;
+      const service = getServiceById(actualServiceId);
+      
+      let newAmount;
+      if (service && service.price_ranges) {
+        newAmount = calculateServiceAmount(service, newQuantity);
+      } else {
+        // For items fetched from API, calculate based on current rate
+        const currentItem = cartData.services.find(item => {
+          const itemServiceId = typeof item.service === 'object' ? item.service.id : item.service;
+          return itemServiceId === actualServiceId;
+        });
+        const currentRate = currentItem ? parseFloat(currentItem.amount) / currentItem.quantity : 30;
+        newAmount = newQuantity * currentRate;
+      }
 
       // Update local state
-      const updatedServices = cartData.services.map(item => 
-        item.service === serviceId 
+      const updatedServices = cartData.services.map(item => {
+        const itemServiceId = typeof item.service === 'object' ? item.service.id : item.service;
+        return itemServiceId === actualServiceId 
           ? { ...item, quantity: newQuantity, amount: newAmount.toFixed(2) }
-          : item
-      );
+          : item;
+      });
 
       // Filter out items with 0 quantity
       const filteredServices = updatedServices.filter(item => item.quantity > 0);
@@ -327,29 +460,30 @@ const CartPage = ({ currentUser }) => {
               ) : (
                 <div className="border border-gray-200 rounded-b-lg mb-6">
                   {cartData.services.map((item, index) => {
-                    const service = getServiceById(item.service);
-                    if (!service) return null;
-                    
                     return (
                       <div key={index} className="grid grid-cols-6 gap-4 p-3 border-b border-gray-100 items-center">
-                        <div className="font-medium">{service.name}</div>
+                        <div className="font-medium">{getServiceName(item)}</div>
                         <div className="text-center">
                           <input
                             type="number"
                             min="1"
                             value={item.quantity}
-                            onChange={(e) => updateCartItemQuantity(item.service, parseInt(e.target.value) || 0)}
+                            onChange={(e) => {
+                              const serviceId = typeof item.service === 'object' ? item.service.id : item.service;
+                              updateCartItemQuantity(serviceId, parseInt(e.target.value) || 0);
+                            }}
                             className="w-16 p-1 border border-gray-300 rounded text-center"
                           />
                         </div>
-                        <div className="text-center">₹{getServiceRate(service, item.quantity)}</div>
+                        <div className="text-center">₹{getServiceRate(item)}</div>
                         <div className="text-center font-semibold text-green-600">₹{parseFloat(item.amount).toFixed(2)}</div>
                         <div className="text-center">
                           <button
                             onClick={() => {
-                              const newQuantity = prompt(`Enter new quantity for ${service.name}:`, item.quantity);
+                              const serviceId = typeof item.service === 'object' ? item.service.id : item.service;
+                              const newQuantity = prompt(`Enter new quantity for ${getServiceName(item)}:`, item.quantity);
                               if (newQuantity !== null) {
-                                updateCartItemQuantity(item.service, parseInt(newQuantity) || 0);
+                                updateCartItemQuantity(serviceId, parseInt(newQuantity) || 0);
                               }
                             }}
                             className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 transition-colors"
@@ -359,7 +493,10 @@ const CartPage = ({ currentUser }) => {
                         </div>
                         <div className="text-center">
                           <button
-                            onClick={() => removeCartItem(item.service)}
+                            onClick={() => {
+                              const serviceId = typeof item.service === 'object' ? item.service.id : item.service;
+                              removeCartItem(serviceId);
+                            }}
                             className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors"
                           >
                             Remove

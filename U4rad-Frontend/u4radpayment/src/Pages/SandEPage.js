@@ -78,63 +78,78 @@ const SandEPage = ({ currentUser }) => {
 
   const handleAddToCart = async () => {
     try {
-      // Filter out items with zero quantity
-      const itemsToAdd = Object.values(cartItems).filter(item => 
-        parseInt(item.quantity) > 0
-      );
+        // Enhanced user validation
+        if (!currentUser?.id || !currentUser?.token) {
+            console.error('Invalid user data:', currentUser);
+            // Clear invalid session
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('isAuthenticated');
+            navigate('/login');
+            return;
+        }
 
-      if (itemsToAdd.length === 0) {
-        alert('Please add at least one item to cart');
-        return;
-      }
+        // Filter items with quantity > 0
+        const itemsToAdd = Object.values(cartItems).filter(item => 
+            parseInt(item.quantity) > 0
+        );
 
-      // Prepare cart data for API
-      const cartData = {
-        client: currentUser.id, // You might need to get this from user context/auth
-        order_id: `ORDER_${Date.now()}`, // Generate unique order ID
-        services: itemsToAdd.map(item => {
-          const service = services.find(s => s.id === item.serviceId);
-          const amount = calculateAmount(service, parseInt(item.quantity));
-          return {
-            service: item.serviceId,
-            quantity: parseInt(item.quantity),
-            amount: amount.toFixed(2)
-          };
-        }),
-        total_amount: getTotalAmount().toFixed(2),
-        discount: "0.00",
-        grand_total: getTotalAmount().toFixed(2),
-        payment_status: false
-      };
+        if (itemsToAdd.length === 0) {
+            alert('Please add at least one item to cart');
+            return;
+        }
 
-      const response = await fetch('http://127.0.0.1:8000/api/cart/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cartData)
-      });
+        const cartData = {
+            client: currentUser.id,
+            client_email: currentUser.email,
+            order_id: `ORDER_${Date.now()}`,
+            services: itemsToAdd.map(item => {
+                const service = services.find(s => s.id === item.serviceId);
+                return {
+                    service: service.id,
+                    quantity: parseInt(item.quantity),
+                    amount: parseFloat(calculateAmount(service, parseInt(item.quantity)).toFixed(2))
+                };
+            }),
+            total_amount: parseFloat(getTotalAmount().toFixed(2)),
+            discount: parseFloat("0.00"),
+            grand_total: parseFloat(getTotalAmount().toFixed(2)),
+            payment_status: false
+        };
 
-      if (!response.ok) {
-        throw new Error('Failed to add items to cart');
-      }
+        const response = await fetch('http://127.0.0.1:8000/api/cart/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentUser.token}`,
+            },
+            body: JSON.stringify(cartData)
+        });
 
-      const result = await response.json();
-      
-      // Navigate to cart page with the order data
-      navigate("/cart", { 
-        state: { 
-          cartData: result,
-          services: services,
-          cartItems: itemsToAdd 
-        } 
-      });
-      
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to add items to cart');
+        }
+
+        const result = await response.json();
+        navigate("/cart", { 
+            state: { 
+                cartData: result,
+                services: services,
+                cartItems: itemsToAdd 
+            } 
+        });
+        
     } catch (err) {
-      console.error('Error adding to cart:', err);
-      alert('Failed to add items to cart. Please try again.');
+        console.error('Error adding to cart:', err);
+        if (err.message.includes('unauthorized')) {
+            navigate('/login');
+        } else {
+            alert(err.message || 'Failed to add items to cart. Please try again.');
+        }
     }
   };
+
+
 
   if (loading) {
     return (

@@ -1,5 +1,5 @@
 from rest_framework import generics
-from dashboard.models.account import Account
+from dashboard.models.Account import Account
 from dashboard.serializer.AccountSerializer import AccountSerializer
 
 

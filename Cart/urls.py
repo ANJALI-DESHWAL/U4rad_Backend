@@ -40,7 +40,7 @@ urlpatterns = [
 
     # Cart endpoints
     path("cart/", OrderCreateView.as_view(), name="order-create"),            # POST
-    path("cart/<str:user_id>/", UserOrderListView.as_view(), name="user-order-list"),
+    path("cart/<str:email>/", UserOrderListView.as_view(), name="user-order-list"),
 
     # PromoCode endpoints
     path("promocodes/", promocode_list, name="promocode-list"),

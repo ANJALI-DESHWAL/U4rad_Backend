@@ -25,5 +25,6 @@ class UserOrderListView(ListAPIView):
     serializer_class = OrderSerializer
 
     def get_queryset(self):
-        user_id = self.kwargs['user_id']
-        return Order.objects.filter(client__user_id=user_id)
+        email = self.kwargs['email']   # 👈 expect email in the URL
+        return Order.objects.filter(client__email=email)
+

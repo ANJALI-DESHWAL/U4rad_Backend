@@ -11,12 +11,20 @@ class LoginAPIView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
-            # validated_data returns the user object (CustomUser)
-            user = cast(CustomUser, serializer.validated_data)
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "user": UserSerializer(user).data,
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            }, status=status.HTTP_200_OK)
+            validated_data = serializer.validated_data or {}
+            user = validated_data.get('user')  # ✅ now works because serializer returns dict with "user"
+            
+            if user is not None:
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    "id": user.id,
+                    "email": user.email,
+                    "username": user.username,
+                    "phone": user.phone,
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,8 +1,8 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.admin import UserAdmin
 from dashboard.models.dashboardmetrics import  DashboardMetrics
 from dashboard.models.user import CustomUser
-from dashboard.models.account import Account
+from dashboard.models.Account import Account
 from dashboard.models.TopUpTransaction import TopUpTransaction
 from dashboard.models.ScanType import ScanType
 from dashboard.models.RecentActivity import RecentActivity
@@ -12,22 +12,10 @@ from dashboard.models.RateCard import RateCard
 # ----------------------------
 # Custom User Admin
 # ----------------------------
-class CustomUserAdmin(BaseUserAdmin):
-    list_display = ('user_id', 'is_admin', 'is_active')
-    list_filter = ('is_admin', 'is_active')
-    search_fields = ('user_id',)
-    ordering = ('user_id',)
-    fieldsets = (
-        (None, {'fields': ('user_id', 'password')}),
-        ('Permissions', {'fields': ('is_admin', 'is_active')}),
-    )
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('user_id', 'password1', 'password2', 'is_admin', 'is_active')}
-        ),
-    )
-    filter_horizontal = ()
+class CustomUserAdmin(UserAdmin):
+    list_display = ('email', 'username', 'is_staff', 'is_active')
+    search_fields = ('email', 'username')
+    ordering = ('email',)
 
 # ----------------------------
 # TopUpTransaction Admin Inline for Account

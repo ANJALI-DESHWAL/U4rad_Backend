@@ -17,19 +17,42 @@ function App() {
   const [userBalance, setUserBalance] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Load user data on mount
   useEffect(() => {
     const authStatus = localStorage.getItem('isAuthenticated');
     const userData = localStorage.getItem('currentUser');
+    
     if (authStatus === 'true' && userData) {
-      setIsAuthenticated(true);
-      setCurrentUser(JSON.parse(userData));
+      try {
+        const parsedUser = JSON.parse(userData);
+        // Validate required user data
+        if (parsedUser && parsedUser.id) {
+          setIsAuthenticated(true);
+          setCurrentUser(parsedUser);
+        } else {
+          // Invalid user data, clear authentication
+          handleLogout();
+        }
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+        handleLogout();
+      }
     }
   }, []);
 
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('currentUser');
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
+
+  // Update storage when auth state changes
   useEffect(() => {
-    localStorage.setItem('isAuthenticated', isAuthenticated.toString());
-    if (currentUser) {
-      localStorage.setItem('currentUser', JSON.stringify(currentUser)); // ✅ Store user
+    if (isAuthenticated && currentUser) {
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
     }
   }, [isAuthenticated, currentUser]);
 
@@ -41,6 +64,7 @@ function App() {
             setTopUpModal={setTopUpModal}
             setIsAuthenticated={setIsAuthenticated}
             setCurrentUser={setCurrentUser}
+            currentUser={currentUser} // Add currentUser prop
           />
         )}
 

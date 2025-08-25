@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link} from 'react-router-dom';
 import AnimatedBackground from '../Components/AnimatedBackground';
+import PropTypes from 'prop-types';
 
 const LoginPage = ({ setIsAuthenticated, setCurrentUser }) => {
-    const [user_id, setUser_id] = useState('');
-    const [password, setPassword] = useState('');
+    // Update credentials structure to match API expectations
+    const [credentials, setCredentials] = useState({ 
+        user_id: '',  // Keep this as user_id for now
+        password: '' 
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
@@ -14,39 +18,60 @@ const LoginPage = ({ setIsAuthenticated, setCurrentUser }) => {
         setLoading(true);
         setError('');
 
-    try {
-      if (user_id.trim() && password.trim()) {
-        // Replace with actual API call to authenticate
-        const response = await fetch('http://127.0.0.1:8000/api/login/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-                        user_id: user_id.trim(), 
-                        password: password.trim() 
-                    })
-        });
+        try {
+            const loginPayload = {
+                email: credentials.user_id,
+                password: credentials.password
+            };
 
-        if (response.ok) {
-          const userData = await response.json();
-          
-          setIsAuthenticated(true);
-          setCurrentUser(userData); // ✅ Set the user data
-          
-          navigate('/quality');
-        } else {
-          setError('Invalid credentials');
+            const response = await fetch('http://127.0.0.1:8000/api/login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(loginPayload)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Login failed');
+            }
+
+            // Store complete user data
+            const userData = {
+                id: data.id,
+                username: data.username,
+                email: data.email,
+                token: data.access,   // ✅ store access token
+                refresh: data.refresh // ✅ optional
+                };
+                localStorage.setItem("currentUser", JSON.stringify(userData));
+
+            // Update app state
+            setCurrentUser(userData);
+            setIsAuthenticated(true);
+
+            // Store in localStorage
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            localStorage.setItem('isAuthenticated', 'true');
+
+            navigate('/quality');
+        } catch (err) {
+            console.error('Login error:', err);
+            setError(err.message || 'Invalid credentials');
+        } finally {
+            setLoading(false);
         }
-      } else {
-        setError('Please enter both user ID and password');
-      }
-    } catch (err) {
-      setError('Login failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setCredentials(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      };
 
     return (
         <AnimatedBackground>
@@ -103,10 +128,11 @@ const LoginPage = ({ setIsAuthenticated, setCurrentUser }) => {
                                     User ID
                                 </label>
                                 <input
-                                    type="text"
-                                    value={user_id}
-                                    onChange={(e) => setUser_id(e.target.value)}
-                                    placeholder="Enter your user id"
+                                    type="email"
+                                    name="user_id" // Keep this as user_id to maintain state compatibility
+                                    value={credentials.user_id}
+                                    onChange={handleChange}
+                                    placeholder="Enter your email address"
                                     className="w-full px-4 py-3 bg-white text-gray-800 rounded-lg border border-gray-300 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
                                     required
                                 />
@@ -118,8 +144,9 @@ const LoginPage = ({ setIsAuthenticated, setCurrentUser }) => {
                                 </label>
                                 <input
                                     type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    name="password"
+                                    value={credentials.password}
+                                    onChange={handleChange}
                                     placeholder="Enter your password"
                                     className="w-full px-4 py-3 bg-white text-gray-800 rounded-lg border border-gray-300 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
                                     required
@@ -159,6 +186,11 @@ const LoginPage = ({ setIsAuthenticated, setCurrentUser }) => {
             </div>
         </AnimatedBackground>
     );
+};
+
+LoginPage.propTypes = {
+  setIsAuthenticated: PropTypes.func.isRequired,
+  setCurrentUser: PropTypes.func.isRequired,
 };
 
 export default LoginPage;

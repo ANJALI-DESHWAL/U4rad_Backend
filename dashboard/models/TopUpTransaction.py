@@ -1,6 +1,6 @@
 from django.db import models
 from decimal import Decimal
-from dashboard.models.account import Account  # make sure Account is in the same app
+from dashboard.models.Account import Account  # make sure Account is in the same app
 
 
 class TopUpTransaction(models.Model):

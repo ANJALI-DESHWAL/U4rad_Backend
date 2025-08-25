@@ -1,11 +1,15 @@
 from django.db import models
-from django.contrib.auth.models import User
-from Cart.Models.Services import Service  # Adjust import if Service is in a different app
+from django.conf import settings   # ✅ use this instead of importing User
+from Cart.Models.Services import Service  # Adjust if Service is in another app
 from decimal import Decimal
 
 
 class Transaction(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="transactions")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,   # ✅ swapped
+        on_delete=models.CASCADE,
+        related_name="transactions"
+    )
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="transactions")
     quantity = models.PositiveIntegerField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)  # price per unit

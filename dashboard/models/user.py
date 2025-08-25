@@ -1,37 +1,42 @@
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
-from django.conf import settings  # not required here unless you link to AUTH_USER_MODEL elsewhere
+from django.utils.translation import gettext_lazy as _
+from typing import Any, TypeVar
+
+T = TypeVar('T', bound='CustomUser')
 
 
-class UserManager(BaseUserManager):
-    def create_user(self, user_id, password=None):
-        if not user_id:
-            raise ValueError("Users must have an ID")
-        user = self.model(user_id=user_id)
+class CustomUserManager(BaseUserManager[T]):
+    def create_user(self, email: str, username: str, password: str | None = None, **extra_fields: Any) -> T:
+        if not email:
+            raise ValueError('The Email field must be set')
+        email = self.normalize_email(email)
+        user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, user_id, password=None):
-        user = self.create_user(user_id=user_id, password=password)
-        user.is_admin = True
-        user.save(using=self._db)
-        return user
+    def create_superuser(self, email: str, username: str, password: str | None = None, **extra_fields: Any) -> T:
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        return self.create_user(email, username, password, **extra_fields)
 
 
-class CustomUser(AbstractBaseUser):
-    user_id = models.CharField(max_length=50, unique=True)
+class CustomUser(AbstractUser):
+    email = models.EmailField(_('email address'), unique=True)
+    phone = models.CharField(max_length=15, blank=True)
     is_active = models.BooleanField(default=True)
-    is_admin = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
 
-    USERNAME_FIELD = 'user_id'
-    REQUIRED_FIELDS = []
+    objects = CustomUserManager()  # type: CustomUserManager[CustomUser]
 
-    objects = UserManager()
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
-    def __str__(self):
-        return self.user_id
+    class Meta:
+        verbose_name = _('user')
+        verbose_name_plural = _('users')
 
-    @property
-    def is_staff(self):
-        return self.is_admin
+    def __str__(self) -> str:
+        return self.email
