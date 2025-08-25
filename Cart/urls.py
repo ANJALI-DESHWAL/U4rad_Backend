@@ -29,13 +29,12 @@ urlpatterns = [
     path("services/<int:pk>/", service_detail, name="service-detail"),
 
     # Cart endpoints
-<<<<<<< HEAD
+
     path("cart/", OrderCreateView.as_view(), name="order-create"),            # POST
     path("cart/<str:email>/", UserOrderListView.as_view(), name="user-order-list"),
-=======
     path("cart/", OrderCreateView.as_view(), name="order-create"),
     path("cart/<str:user_id>/", UserOrderListView.as_view(), name="user-order-list"),
->>>>>>> 133f4e62449d2540b017b80f6e82b321117476c3
+
 
     # PromoCode endpoints
     path("promocodes/", promocode_list, name="promocode-list"),
